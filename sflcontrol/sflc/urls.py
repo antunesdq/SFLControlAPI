@@ -7,5 +7,6 @@ from django.conf import settings
 
 urlpatterns = [
     url(r'^user$', views.user),
+    url(r'^users/$', views.user),
     url(r'^login$', views.login),
 ]
