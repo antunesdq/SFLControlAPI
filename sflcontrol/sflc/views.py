@@ -53,23 +53,29 @@ def user(request):
         try:
             user_data = JSONParser().parse(request)
             user = User.objects.get(usr_id=user_data['usr_id'])
-            user.delete() # TODO check this.
+            user.delete()
+            return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return JsonResponse("User does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
     else:
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
-# TODO test account CRUD.
+
 @csrf_exempt
 @ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
-def account(request, id = None):
+def account(request):
     # Method used to get account information.
     if request.method == 'GET':
         try:
-            account = Account.objects.filter(acc_id=request.GET['acc_id'],)
+            account = Account.objects.filter(usr_id=request.GET['usr_id'],)
             serializer = AccountSerializer(account, many=True)
             return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
-        except Account.DoesNotExist:
-            return JsonResponse({'Account does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        except:
+            try:
+                account = Account.objects.get(acc_id=request.GET['acc_id'],)
+                serializer = AccountSerializer(account, many=False)
+                return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            except Account.DoesNotExist:
+                return JsonResponse({'Account does not exist'}, status=status.HTTP_404_NOT_FOUND)
     # Method used to create account.
     elif request.method == 'POST':
         account_data = JSONParser().parse(request)
@@ -93,7 +99,17 @@ def account(request, id = None):
                 return JsonResponse("Failed to update.", safe= False, status = status.HTTP_400_BAD_REQUEST)
         except Account.DoesNotExist:
             return JsonResponse("Account does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
-    
+    # Method used to delete account.
+    elif request.method == 'DELETE':
+        try:
+            account_data = JSONParser().parse(request)
+            account = Account.objects.get(acc_id=account_data['acc_id'])
+            account.delete()
+            return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
+        except Account.DoesNotExist:
+            return JsonResponse("Account does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+    else:
+        return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @csrf_exempt
 @ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
