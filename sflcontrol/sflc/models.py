@@ -34,7 +34,7 @@ class Transaction(models.Model):
     tra_date = models.DateTimeField()
     tra_value = models.DecimalField(max_digits=9, decimal_places=2)
     tra_model = models.CharField(max_length=9, choices=TRANSACTION_MODEL, default=IN)
-    mod_name = CharField(max_length=50) # ot sure if this should be something different
+    mod_name = CharField(max_length=50) # TODO not sure if this should be something different
 
 class Image(models.Model):
     fields = ('img_id', 'img_name', 'img_image')
@@ -79,7 +79,7 @@ class Investment(models.Model):
     inv_qty = models.DecimalField(max_digits=9, decimal_places=2)
     inv_price = models.DecimalField(max_digits=9, decimal_places=2)
 
-class Modal(models.Model):
+class Modal(models.Model): #TODO Descobrir se mantém essa merda aqui ou não.
     fields = ('mod_id', 'mod_name', 'tag_id')
     mod_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mod_name = models.CharField(max_length=25)

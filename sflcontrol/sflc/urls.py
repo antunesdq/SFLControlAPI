@@ -11,4 +11,6 @@ urlpatterns = [
     url(r'^login$', views.login),
     url(r'^account$', views.account),
     url(r'^account/$', views.account),
+    url(r'^transaction$', views.transaction),
+    url(r'^transaction/$', views.transaction),
 ]
