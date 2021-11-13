@@ -8,9 +8,24 @@ from django.conf import settings
 urlpatterns = [
     url(r'^user$', views.user),
     url(r'^user/$', views.user),
-    url(r'^login$', views.login),
+
+    url(r'^user/login$', views.user),
+
     url(r'^account$', views.account),
     url(r'^account/$', views.account),
+    
     url(r'^transaction$', views.transaction),
     url(r'^transaction/$', views.transaction),
+
+    url(r'^vault$', views.vault),
+    url(r'^vault/$', views.vault),
+
+    url(r'^budget$', views.budget),
+    url(r'^budget/$', views.budget),
+
+    url(r'^image$', views.image),
+    url(r'^image/$', views.image),
+    
+    url(r'^tag$', views.tag),
+    url(r'^tag/$', views.tag),
 ]

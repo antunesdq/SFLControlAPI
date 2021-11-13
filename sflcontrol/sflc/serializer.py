@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from django.forms import ModelForm
 
 from sflc.models import *
 
@@ -23,6 +23,11 @@ class ImageSerializer(serializers.ModelSerializer):
         model = Image
         fields = Image.fields
 
+class ImageForm(ModelForm):
+    class Meta:
+        model = Image
+        fields = Image.fields
+        
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
@@ -47,8 +52,3 @@ class InvestmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Investment
         fields = Investment.fields
-
-class ModalSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Modal
-        fields = Modal.fields

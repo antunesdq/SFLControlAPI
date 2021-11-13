@@ -6,7 +6,7 @@ from django.http.response import JsonResponse
 from rest_framework import status
 from rest_framework.parsers import JSONParser
 from ratelimit.decorators import ratelimit
-
+from django.http import QueryDict
 from sflc.serializer import *
 
 from sflc.models import *
@@ -15,26 +15,43 @@ from sflc.models import *
 
 
 @csrf_exempt
-@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
-def user(request):
-    # Method used to get user information.
-    if request.method == 'GET':
-        try:
-            users = User.objects.get(usr_id=request.GET['usr_id'])
-            serializer = UserSerializer(users, many=False)
-            return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            return JsonResponse({'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
+@ratelimit(key='ip', rate='10/m', block = True, method = ratelimit.ALL)
+def user(request, usr_doc = None, usr_pwd = None):
     # Method used to create user.
-    elif request.method == 'POST':
-        user_data = JSONParser().parse(request)
-        user_serializer = UserSerializer(data=user_data)
-        if user_serializer.is_valid():
-            user_serializer.save()
-            return JsonResponse("User Created.", safe= False, status = status.HTTP_200_OK)
-        else:
-            print(user_serializer.errors)
-            return JsonResponse("User already exists or wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+    if request.method == 'POST':
+        try:
+            user_data = JSONParser().parse(request)
+            user_serializer = UserSerializer(data=user_data)
+            if User.objects.filter(usr_doc = user_data['usr_doc']).exists():
+                return JsonResponse("User already exists.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+            elif user_serializer.is_valid():
+                user_serializer.save()
+                return JsonResponse("User Created.", safe= False, status = status.HTTP_201_CREATED)
+            else:
+                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Method used to get user.
+    elif request.method == 'GET':
+        try:
+            usr_id=request.GET.get('usr_id')
+            if usr_id == None:
+                usr_doc = request.GET.get('usr_doc')
+                usr_pwd = request.GET.get('usr_pwd')
+                if usr_doc == None or usr_pwd == None:
+                    return JsonResponse("User does not exist or wrong password.", safe=False, status = status.HTTP_404_NOT_FOUND)
+                else:
+                    user = User.objects.get(usr_doc=usr_doc, usr_pwd=usr_pwd)
+                    user_serializer = UserSerializer(user)
+                return JsonResponse({"usr_id":user_serializer.data['usr_id']}, safe=False, status= status.HTTP_200_OK)                
+            else:
+                user = User.objects.get(usr_id=usr_id)
+                serializer = UserSerializer(user, many=False)
+                return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return JsonResponse("Something went wrong with your request.", safe=False, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
     # Method used to update user information.
     elif request.method == 'PUT':
         try:
@@ -45,65 +62,232 @@ def user(request):
                 user_serializer.save()
                 return JsonResponse("User Updated.", safe= False, status = status.HTTP_200_OK)
             else:
-                return JsonResponse("Failed to update.", safe= False, status = status.HTTP_400_BAD_REQUEST)
-        except User.DoesNotExist:
-            return JsonResponse("User does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+                return JsonResponse("Wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            if e == User.DoesNotExist:
+                return JsonResponse("User does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     # Method used to delete user.
     elif request.method == 'DELETE':
         try:
             user_data = JSONParser().parse(request)
             user = User.objects.get(usr_id=user_data['usr_id'])
             user.delete()
-            return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            return JsonResponse("User does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+            return JsonResponse("Deleted Successfully!", safe = False, status=status.HTTP_200_OK)
+        except Exception as e:
+            if e == User.DoesNotExist:
+                return JsonResponse("User does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # Anything else then CRUD.
     else:
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
 
+
 @csrf_exempt
 @ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
-def login(request, usr_doc = None, usr_pwd = None):
-    # Method used to log user.
+def image(request, parsed = False, data = None):
+    # Method used to create image.
     if request.method == 'POST':
-        user_data = JSONParser().parse(request)
-        usr_doc = user_data['usr_doc']
-        usr_pwd = user_data['usr_pwd']
-        if usr_doc is not None and usr_pwd is not None:
-            try:
-                user_data = User.objects.get(usr_doc = usr_doc, usr_pwd = usr_pwd)
-                user_serializer = UserSerializer(user_data)
-                return JsonResponse({"usr_id":user_serializer.data['usr_id']}, safe=False, status= status.HTTP_200_OK)
-            except:
-                return JsonResponse("User does not exist or wrong password.", safe=False, status = status.HTTP_401_UNAUTHORIZED)
-        else:
-            return JsonResponse("Provide user and password.", safe=False, status = status.HTTP_400_BAD_REQUEST)
+        try:
+            image_form = ImageForm(request.POST, request.FILES)
+            if Image.objects.filter(img_name = image_form['img_name'].data).exists():
+                if request.POST.get('img_update') == "True":
+                    try:
+                        image_form = ImageForm(request.POST, request.FILES)
+                        image = Image.objects.get(img_name=image_form.data['img_name'])
+                        image_form = ImageForm(request.POST, request.FILES, instance=image)
+                        if image_form.is_valid():
+                            image_form.save()
+                            return JsonResponse("Image Updated.", safe= False, status = status.HTTP_200_OK)
+                        else:
+                            return JsonResponse("Wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+                    except Exception as e:
+                        if e == Image.DoesNotExist:
+                            return JsonResponse("Image does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
+                        else:
+                            return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+                else:
+                    return JsonResponse("Image already exists", safe=False, status=status.HTTP_400_BAD_REQUEST)
+            elif parsed:
+                image_form = ImageForm(data)
+            if image_form.is_valid():
+                image_form.save()
+                return JsonResponse("Image Created.", safe= False, status = status.HTTP_201_CREATED)
+        except:
+            return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # Method used to get image information.
+    if request.method == 'GET':
+        try:
+            img_name = request.GET.get('img_name')
+            if img_name == None:
+                image = Image.objects.all()
+                serializer = ImageSerializer(image, many=True)
+                return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            else:
+                image = Image.objects.get(img_name=img_name)
+                serializer = ImageSerializer(image, many=False)
+                return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+        except Exception as e:
+            if e == Image.DoesNotExist:
+                return JsonResponse("Image does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+    # Method used to delete image.
+    elif request.method == 'DELETE':
+        try:
+            image_data = JSONParser().parse(request)
+            image = Image.objects.get(img_name=image_data['img_name'])
+            image.delete()
+            return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
+        except Exception as e:
+            if e == Image.DoesNotExist:
+                return JsonResponse("Image does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)    
+   
+    # Anything else then CRUD.
+    else:
+        return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+def tag(request, parsed = False, data = None):
+    # Method used to create tag.
+    if request.method == 'POST':
+        try:
+            if parsed:
+                tag_data = data
+                tag_data['img_name'] = tag_data['tag_name']
+            else:
+                tag_data = JSONParser().parse(request)
+            if Tag.objects.filter(tag_name=tag_data['tag_name']).exists():
+                return JsonResponse('Tag already exists.', safe=False, status=status.HTTP_400_BAD_REQUEST)
+            if not Image.objects.filter(img_name=tag_data['img_name']).exists():
+                image_status = image(request, parsed = True, data=tag_data)
+                if image_status.status_code == status.HTTP_201_CREATED:
+                    image_exists = True
+            else:
+                image_exists = True
+            if image_exists:
+                tag_serializer = TagSerializer(data=tag_data)
+                if tag_serializer.is_valid():
+                    tag_serializer.save()
+                    return JsonResponse("Tag Created.", safe= False, status = status.HTTP_201_CREATED)
+                else:
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # Method used to get tag information.
+    elif request.method == 'GET':
+        try:
+            tag_name = request.GET.get('tag_name')
+            if tag_name == None:
+                tag = Tag.objects.all()
+                serializer = TagSerializer(tag, many=True)
+                return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            else:
+                tag = Tag.objects.get(tag_name = tag_name)
+                serializer = TagSerializer(tag, many=False)
+                return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+        except Exception as e:
+            if e == Tag.DoesNotExist:
+                return JsonResponse("Tag does not exist", safe=False, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # Method used to update tag information.
+    elif request.method == 'PUT':
+        try:
+            tag_data = JSONParser().parse(request)
+            tag = Tag.objects.get(tag_name=tag_data['tag_name'])
+            tag_serializer = TagSerializer(tag, data=tag_data, partial = True)
+            if tag_serializer.is_valid():
+                tag_serializer.save()
+                return JsonResponse("Tag Updated.", safe= False, status = status.HTTP_200_OK)
+            else:
+                return JsonResponse("Wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            if e == Tag.DoesNotExist:
+                return JsonResponse("Tag does not exist", safe=False, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)    
+    
+    # Method used to delete tag.
+    elif request.method == 'DELETE':
+        try:
+            tag_data = JSONParser().parse(request)
+            tag = Tag.objects.get(tag_name=tag_data['tag_name'])
+            tag.delete()
+            return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
+        except Exception as e:
+            if e == Tag.DoesNotExist:
+                return JsonResponse("Tag does not exist", safe=False, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)    
+    
+    # Anything else then CRUD.
+    else:
+        return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
+
 
 @csrf_exempt
 @ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
 def account(request):
-    # Method used to get account information.
-    if request.method == 'GET':
+    # Method used to create account.
+    if request.method == 'POST':
         try:
-            account = Account.objects.filter(usr_id=request.GET['usr_id'],)
-            serializer = AccountSerializer(account, many=True)
-            return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            account_data = JSONParser().parse(request)
+            if Account.objects.filter(acc_alias=account_data['acc_alias'], usr_id=account_data['usr_id']).exists():
+                return JsonResponse("Account already exists", safe=False, status=status.HTTP_400_BAD_REQUEST)
+            if not Tag.objects.filter(tag_name=account_data['tag_name']).exists():
+                tag_status = tag(request, parsed = True, data = account_data)
+                if tag_status.status_code == status.HTTP_201_CREATED: 
+                    tag_exists = True
+            else:
+                tag_exists = True
+            if tag_exists:           
+                account_serializer = AccountSerializer(data=account_data)
+                if account_serializer.is_valid():
+                    account_serializer.save()
+                    return JsonResponse("Account Created.", safe= False, status = status.HTTP_201_CREATED)
+                else:
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
         except:
-            try:
-                account = Account.objects.get(acc_id=request.GET['acc_id'],)
+            return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # Method used to get account information.
+    elif request.method == 'GET':
+        try:
+            acc_id = request.GET.get('acc_id')
+            if acc_id == None:
+                usr_id=request.GET.get('usr_id'),
+                if usr_id == None:
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                else:  
+                    account = Account.objects.filter(usr_id=usr_id)
+                    serializer = AccountSerializer(account, many=True)
+                    return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            else:
+                account = Account.objects.get(acc_id=request.GET.get('acc_id'))
                 serializer = AccountSerializer(account, many=False)
                 return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
-            except Account.DoesNotExist:
-                return JsonResponse({'Account does not exist'}, status=status.HTTP_404_NOT_FOUND)
-    # Method used to create account.
-    elif request.method == 'POST':
-        account_data = JSONParser().parse(request)
-        account_serializer = AccountSerializer(data=account_data)
-        if account_serializer.is_valid():
-            account_serializer.save()
-            return JsonResponse("Account Created.", safe= False, status = status.HTTP_200_OK)
-        else:
-            print(account_serializer.errors)
-            return JsonResponse("Account already exists or wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            if e == Account.DoesNotExist:
+                return JsonResponse('Account does not exist', safe=False, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
     # Method used to update account information.
     elif request.method == 'PUT':
         try:
@@ -117,6 +301,7 @@ def account(request):
                 return JsonResponse("Failed to update.", safe= False, status = status.HTTP_400_BAD_REQUEST)
         except Account.DoesNotExist:
             return JsonResponse("Account does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+    
     # Method used to delete account.
     elif request.method == 'DELETE':
         try:
@@ -124,37 +309,66 @@ def account(request):
             account = Account.objects.get(acc_id=account_data['acc_id'])
             account.delete()
             return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
-        except Account.DoesNotExist:
-            return JsonResponse("Account does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            if e == Account.DoesNotExist:
+                return JsonResponse("Account does not exist", safe=False, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)    
+    
+    # Anything else then CRUD.
     else:
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
+
 
 @csrf_exempt
 @ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
 def transaction(request):
-    # Method used to get transaction information.
-    if request.method == 'GET':
+    # Method used to create transaction.
+    if request.method == 'POST':
         try:
-            transaction = Transaction.objects.filter(acc_id=request.GET['acc_id'],)
-            serializer = TransactionSerializer(transaction, many=True)
-            return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            transaction_data = JSONParser().parse(request)
+            if Transaction.objects.filter(**transaction_data).exists():
+                return JsonResponse("Transaction already exists.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+            if not Tag.objects.filter(tag_name=transaction_data['tag_name']).exists():
+                tag_status = tag(request, parsed = True, data = transaction_data)
+                if tag_status.status_code == status.HTTP_201_CREATED: 
+                    tag_exists = True
+            else:
+                tag_exists = True
+            if tag_exists:                       
+                transaction_serializer = TransactionSerializer(data=transaction_data)
+                if transaction_serializer.is_valid():
+                    transaction_serializer.save()
+                    return JsonResponse("Transaction Created.", safe= False, status = status.HTTP_201_CREATED)
+                else:
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
         except:
-            try:
-                transaction = Transaction.objects.get(tra_id=request.GET['tra_id'],)
+            return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    # Method used to get transaction information.
+    elif request.method == 'GET':
+        try:
+            tra_id = request.GET.get('tra_id')
+            if tra_id is None:
+                acc_id = request.GET.get('acc_id')
+                if acc_id is None:
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    transaction = Transaction.objects.filter(acc_id=request.GET.get('acc_id'))
+                    serializer = TransactionSerializer(transaction, many=True)
+                    return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            else:
+                transaction = Transaction.objects.get(tra_id=request.GET.get('tra_id'))
                 serializer = TransactionSerializer(transaction, many=False)
                 return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
-            except Transaction.DoesNotExist:
-                return JsonResponse({'Transaction does not exist'}, status=status.HTTP_404_NOT_FOUND)
-    # Method used to create transaction.
-    elif request.method == 'POST':
-        transaction_data = JSONParser().parse(request)
-        transaction_serializer = TransactionSerializer(data=transaction_data)
-        if transaction_serializer.is_valid():
-            transaction_serializer.save()
-            return JsonResponse("Transaction Created.", safe= False, status = status.HTTP_200_OK)
-        else:
-            print(transaction_serializer.errors)
-            return JsonResponse("Transaction already exists or wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            if e == Transaction.DoesNotExist:
+                return JsonResponse('Transaction does not exist', safe=False, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     # Method used to update Transaction information.
     elif request.method == 'PUT':
         try:
@@ -168,14 +382,121 @@ def transaction(request):
                 return JsonResponse("Failed to update.", safe= False, status = status.HTTP_400_BAD_REQUEST)
         except Transaction.DoesNotExist:
             return JsonResponse("Transaction does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
-    # Method used to delete account.
+    
+    # Method used to delete transaction.
     elif request.method == 'DELETE':
         try:
             transaction_data = JSONParser().parse(request)
             transaction = Transaction.objects.get(tra_id=transaction_data['tra_id'])
             transaction.delete()
             return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
-        except Account.DoesNotExist:
-            return JsonResponse("Transaction does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            if e == Transaction.DoesNotExist:
+                return JsonResponse("Transaction does not exist", safe=False, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)    
+    
+    # Anything else then CRUD.
+    else:
+        return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+def vault(request):
+    # Method used to get vault information.
+    if request.method == 'GET':
+        try:
+            vault = Vault.objects.filter(acc_id=request.GET.get('acc_id'))
+            serializer = VaultSerializer(vault, many=True)
+            return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+        except:
+            try:
+                vault = Vault.objects.get(vau_id=request.GET.get('vau_id'))
+                serializer = VaultSerializer(vault, many=False)
+                return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            except Vault.DoesNotExist:
+                return JsonResponse({'Vault does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    # Method used to create vault.
+    elif request.method == 'POST':
+        vault_data = JSONParser().parse(request)
+        vault_serializer = VaultSerializer(data=vault_data)
+        if vault_serializer.is_valid():
+            vault_serializer.save()
+            return JsonResponse("Vault Created.", safe= False, status = status.HTTP_200_OK)
+        else:
+            return JsonResponse("Vault already exists or wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+    # Method used to update vault information.
+    elif request.method == 'PUT':
+        try:
+            vault_data = JSONParser().parse(request)
+            vault = Vault.objects.get(vau_id=vault_data['vau_id'])
+            vault_serializer = VaultSerializer(vault, data=vault_data, partial = True)
+            if vault_serializer.is_valid():
+                vault_serializer.save()
+                return JsonResponse("Vault Updated.", safe= False, status = status.HTTP_200_OK)
+            else:
+                return JsonResponse("Failed to update.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Vault.DoesNotExist:
+            return JsonResponse("Vault does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+    # Method used to delete vault.
+    elif request.method == 'DELETE':
+        try:
+            vault_data = JSONParser().parse(request)
+            vault = Vault.objects.get(vau_id=vault_data['vau_id'])
+            vault.delete()
+            return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
+        except Vault.DoesNotExist:
+            return JsonResponse("Vault does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+    else:
+        return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
+
+@csrf_exempt
+@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+def budget(request):
+    # Method used to get budget information.
+    if request.method == 'GET':
+        try:
+            budget = Budget.objects.filter(acc_id=request.GET.get('acc_id'))
+            serializer = BudgetSerializer(budget, many=True)
+            return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+        except:
+            try:
+                budget = Budget.objects.get(bud_id=request.GET.get('bud_id'))
+                serializer = BudgetSerializer(budget, many=False)
+                return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+            except Budget.DoesNotExist:
+                return JsonResponse({'Budget does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    # Method used to create budget.
+    elif request.method == 'POST':
+        budget_data = JSONParser().parse(request)
+        budget_serializer = BudgetSerializer(data=budget_data)
+        if budget_serializer.is_valid():
+            budget_serializer.save()
+            return JsonResponse("Budget Created.", safe= False, status = status.HTTP_200_OK)
+        else:
+            return JsonResponse("Budget already exists or wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+    # Method used to update budget information.
+    elif request.method == 'PUT':
+        try:
+            budget_data = JSONParser().parse(request)
+            budget = Budget.objects.get(bud_id=budget_data['bud_id'])
+            budget_serializer = BudgetSerializer(budget, data=budget_data, partial = True)
+            if budget_serializer.is_valid():
+                budget_serializer.save()
+                return JsonResponse("Budget Updated.", safe= False, status = status.HTTP_200_OK)
+            else:
+                return JsonResponse("Budget to update.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Budget.DoesNotExist:
+            return JsonResponse("Budget does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+    # Method used to delete Budget.
+    elif request.method == 'DELETE':
+        try:
+            budget_data = JSONParser().parse(request)
+            budget = Budget.objects.get(bud_id=budget_data['bud_id'])
+            budget.delete()
+            return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
+        except Budget.DoesNotExist:
+            return JsonResponse("Budget does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
     else:
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
