@@ -30,17 +30,10 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 #TODO check all tests
-#User, Accout, Image, Tag_t, Transaction, Budget, Vault
-#User - create or login, get, update, delete
-#Account - create, get by user, get, update, delete
-#Image - create, get all, get, update, delete
-#Tag_t - create after geting information from Image, get all, get, update, delete
-#Transaction - create after geting information from Account and Tag_t, get by acc, get, update, delete
-#Vault - create after geting information from Account and Image, get by acc, get, update, delete
-#Budget - create after geting information from Account and Image, get by acc, get, update, delete
+#Vault - create after geting information from Account and Tag, get by acc, get, update, delete
+#Budget - create after geting information from Account and Tag, get by acc, get, update, delete
 #TODO create Investment and Active classes and test them.
-#Active - create after geting information from Image, get all, get, update, delete
-#Investment - create after geting information from Account and Active, get by acc, get, update, delete
+#Investment - create after geting information from Account and Tag, get by acc, get, update, delete
 
 
 
@@ -62,7 +55,7 @@ image_test.get_image()
 image_test.update_image()
 
 
-print(f"{bcolors.OKGREEN}Begin  Account Crud!{bcolors.ENDC}")
+print(f"{bcolors.OKGREEN}Begin  Tag Crud!{bcolors.ENDC}")
 tag_test = Tag(img_name=image_test.img_name, tag_name="TestTagName")
 tag_test.create_tag()
 tag_test.get_all_tags()

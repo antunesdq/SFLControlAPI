@@ -12,7 +12,7 @@ from sflc.serializer import *
 from sflc.models import *
 
 # Create your views here.
-
+# TODO Change all https to make sure they're unique.
 
 @csrf_exempt
 @ratelimit(key='ip', rate='10/m', block = True, method = ratelimit.ALL)
@@ -28,8 +28,9 @@ def user(request, usr_doc = None, usr_pwd = None):
                 user_serializer.save()
                 return JsonResponse("User Created.", safe= False, status = status.HTTP_201_CREATED)
             else:
-                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
-        except:
+                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
+        except Exception as e:
+            print(e)
             return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # Method used to get user.
@@ -62,7 +63,7 @@ def user(request, usr_doc = None, usr_pwd = None):
                 user_serializer.save()
                 return JsonResponse("User Updated.", safe= False, status = status.HTTP_200_OK)
             else:
-                return JsonResponse("Wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+                return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLE)
         except Exception as e:
             if e == User.DoesNotExist:
                 return JsonResponse("User does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
@@ -103,7 +104,7 @@ def image(request, parsed = False, data = None):
                             image_form.save()
                             return JsonResponse("Image Updated.", safe= False, status = status.HTTP_200_OK)
                         else:
-                            return JsonResponse("Wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+                            return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLET)
                     except Exception as e:
                         if e == Image.DoesNotExist:
                             return JsonResponse("Image does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
@@ -180,9 +181,9 @@ def tag(request, parsed = False, data = None):
                     tag_serializer.save()
                     return JsonResponse("Tag Created.", safe= False, status = status.HTTP_201_CREATED)
                 else:
-                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
             else:
-                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
         except Exception as e:
             return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -214,7 +215,7 @@ def tag(request, parsed = False, data = None):
                 tag_serializer.save()
                 return JsonResponse("Tag Updated.", safe= False, status = status.HTTP_200_OK)
             else:
-                return JsonResponse("Wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+                return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLE)
         except Exception as e:
             if e == Tag.DoesNotExist:
                 return JsonResponse("Tag does not exist", safe=False, status=status.HTTP_404_NOT_FOUND)
@@ -260,9 +261,9 @@ def account(request):
                     account_serializer.save()
                     return JsonResponse("Account Created.", safe= False, status = status.HTTP_201_CREATED)
                 else:
-                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
             else:
-                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
         except:
             return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -273,7 +274,7 @@ def account(request):
             if acc_id == None:
                 usr_id=request.GET.get('usr_id'),
                 if usr_id == None:
-                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLET)
                 else:  
                     account = Account.objects.filter(usr_id=usr_id)
                     serializer = AccountSerializer(account, many=True)
@@ -341,9 +342,9 @@ def transaction(request):
                     transaction_serializer.save()
                     return JsonResponse("Transaction Created.", safe= False, status = status.HTTP_201_CREATED)
                 else:
-                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
             else:
-                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
         except:
             return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -354,7 +355,7 @@ def transaction(request):
             if tra_id is None:
                 acc_id = request.GET.get('acc_id')
                 if acc_id is None:
-                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+                    return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
                 else:
                     transaction = Transaction.objects.filter(acc_id=request.GET.get('acc_id'))
                     serializer = TransactionSerializer(transaction, many=True)
@@ -426,6 +427,7 @@ def vault(request):
             return JsonResponse("Vault Created.", safe= False, status = status.HTTP_200_OK)
         else:
             return JsonResponse("Vault already exists or wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+            
     # Method used to update vault information.
     elif request.method == 'PUT':
         try:

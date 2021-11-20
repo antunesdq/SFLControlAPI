@@ -12,7 +12,7 @@ class User(models.Model):
     usr_email = models.CharField(max_length=50)
     usr_doc = models.IntegerField(unique=True)
     usr_pwd = models.CharField(max_length=15)
-    usr_credate = models.DateField()
+    usr_credate = models.DateField(auto_now_add=True)
 
 class Image(models.Model):
     fields = ('img_name', 'img_image')
@@ -29,7 +29,7 @@ class Account(models.Model):
     fields = ('acc_id', 'usr_id', 'acc_credate', 'acc_alias', 'tag_name')
     acc_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     usr_id = models.ForeignKey(User, on_delete=models.CASCADE)
-    acc_credate = models.DateField()
+    acc_credate = models.DateField(auto_now_add=True)
     acc_alias = models.CharField(max_length=25)
     tag_name = models.ForeignKey(Tag, on_delete=models.CASCADE)
 

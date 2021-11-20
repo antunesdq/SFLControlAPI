@@ -33,7 +33,6 @@ class Image():
     try:
       if self.status:
         payload={'img_name': self.img_name}
-        #TODO change file to use an image from folder
         files=[('img_image',('1.jpg',open('/home/matt/Projects/SFLControlAPI/sflcontrol/sflc/Tests/1.jpg','rb'),'image/jpeg'))]
         response = requests.request("POST", url = self.url_img, headers=self.headers, data=payload, files = files)
         if response.status_code == 201 or response.status_code == 400:

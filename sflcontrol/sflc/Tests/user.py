@@ -39,8 +39,7 @@ class User():
           "usr_nickname": "TestNickname",
           "usr_email": "TestEmail",
           "usr_doc": self.usr_doc,
-          "usr_pwd": self.usr_pwd,
-          "usr_credate": "2021-11-05",
+          "usr_pwd": self.usr_pwd
         })
         response = requests.request("POST", url=self.url_user, headers=self.headers, data=payload)
         if response.status_code == 201 or response.status_code == 400:

@@ -37,7 +37,6 @@ class Account():
       if self.status:
         payload = json.dumps({
           "usr_id":self.usr_id,
-          "acc_credate": "2021-11-05",
           "acc_alias": "TestAccount",
           "tag_name":self.tag_name
         })
