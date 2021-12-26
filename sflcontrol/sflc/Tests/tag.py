@@ -21,13 +21,15 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 class Tag():
-  def __init__(self, img_name = None, tag_name = None):
+  def __init__(self, img_name = None, tag_name = None, tag_type = None, tag_colour = None):
     self.status = True
     self.headers = {
         'Content-Type': 'application/json'
       }
     self.tag_name = tag_name
     self.img_name = img_name
+    self.tag_type = tag_type
+    self.tag_colour = tag_colour
     self.url_tag = "http://127.0.0.1:8000/tag"
 
   def create_tag(self):
@@ -35,9 +37,10 @@ class Tag():
     try:
       if self.status:
         payload = json.dumps({
-          "tag_name": "TestTagName",
-          "tag_type": "TestTagType",
-          "img_name": self.img_name
+          "tag_name": self.tag_name,
+          "tag_type": self.tag_type,
+          "img_name": self.img_name,
+          "tag_colour": self.tag_colour
         })
         response = requests.request("POST", url = self.url_tag, headers=self.headers, data=payload)
         if response.status_code == 201 or response.status_code == 400:

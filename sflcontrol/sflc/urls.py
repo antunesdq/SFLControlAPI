@@ -11,8 +11,12 @@ urlpatterns = [
 
     url(r'^user/login$', views.user),
 
+    url(r'^user/serial$', views.user_serial),
+
     url(r'^account$', views.account),
     url(r'^account/$', views.account),
+
+    url(r'^account/serial$', views.account_serial),
     
     url(r'^transaction$', views.transaction),
     url(r'^transaction/$', views.transaction),

@@ -2,6 +2,7 @@ from typing import Tuple
 from django.conf.urls import url
 from django.test import TestCase
 from pip._vendor import requests
+import random
 import json
 
 from rest_framework import status
@@ -21,7 +22,7 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 class Transaction():
-  def __init__(self, acc_id = None, tag_name = None):
+  def __init__(self, acc_id = None, tag_name = None, tra_name = "Sei la", tra_value = "None", tra_date = "2006-10-25 14:30"):
     self.status = True
     self.headers = {
         'Content-Type': 'application/json'
@@ -37,7 +38,7 @@ class Transaction():
         payload = json.dumps({
           "acc_id":self.acc_id,
           "tra_date": "2006-10-25 14:30",
-          "tra_value": 105,
+          "tra_value": random.randint(100, 1000),
           "tra_name": "Sei la",
           "tag_name": self.tag_name
         })

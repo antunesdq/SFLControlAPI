@@ -1,4 +1,5 @@
 from functools import partial
+from time import thread_time_ns
 from django.db.models.query_utils import Q
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
@@ -7,15 +8,16 @@ from rest_framework import status
 from rest_framework.parsers import JSONParser
 from ratelimit.decorators import ratelimit
 from django.http import QueryDict
+from rest_framework.serializers import Serializer
 from sflc.serializer import *
 
 from sflc.models import *
 
 # Create your views here.
 # TODO Change all https to make sure they're unique.
-
+rate =1000
 @csrf_exempt
-@ratelimit(key='ip', rate='10/m', block = True, method = ratelimit.ALL)
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
 def user(request, usr_doc = None, usr_pwd = None):
     # Method used to create user.
     if request.method == 'POST':
@@ -88,7 +90,51 @@ def user(request, usr_doc = None, usr_pwd = None):
 
 
 @csrf_exempt
-@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
+def user_serial(request, usr_id = None):
+    if request.method == 'GET':
+        try:
+            usr_id = request.GET.get('usr_id')
+            if usr_id != None:
+                transactionlist = []    
+                accs = Account.objects.filter(usr_id=usr_id)
+                for acc in accs:
+                    transactionlist += Transaction.objects.filter(acc_id=str(acc.acc_id))
+                tra_serializer = TransactionSerializer(transactionlist, many=True)
+                tra_responseitem = {}
+                for item in tra_serializer.data:
+                    try:
+                        tra_responseitem[item['tag_name']] += float(item['tra_value'])
+                    except KeyError:
+                        tra_responseitem[item['tag_name']] = float(item['tra_value'])
+                
+                budgetlist = []
+                accs = Account.objects.filter(usr_id=usr_id)
+                for acc in accs:
+                    budgetlist += Budget.objects.filter(acc_id=str(acc.acc_id))
+                
+                bud_serializer = BudgetSerializer(budgetlist, many=True)
+                bud_responseitem = {}
+                for item in bud_serializer.data:
+                    try:
+                        bud_responseitem[item['tag_name']] += float(item['bud_value'])
+                    except KeyError:
+                        bud_responseitem[item['tag_name']] = float(item['bud_value'])
+
+
+                response = {}
+                response['pieEntriesTra'] = tra_responseitem
+                response['pieEntriesBud'] = bud_responseitem
+                response['transactions'] = {item["tra_id"]:item for item in tra_serializer.data}
+                return JsonResponse(response, safe=False, status=status.HTTP_200_OK)
+            else:
+                return JsonResponse("You must Specify a user id.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return JsonResponse("Something went wrong with your request.", safe=False, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@csrf_exempt
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
 def image(request, parsed = False, data = None):
     # Method used to create image.
     if request.method == 'POST':
@@ -104,7 +150,7 @@ def image(request, parsed = False, data = None):
                             image_form.save()
                             return JsonResponse("Image Updated.", safe= False, status = status.HTTP_200_OK)
                         else:
-                            return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLET)
+                            return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLE)
                     except Exception as e:
                         if e == Image.DoesNotExist:
                             return JsonResponse("Image does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
@@ -157,7 +203,7 @@ def image(request, parsed = False, data = None):
 
 
 @csrf_exempt
-@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
 def tag(request, parsed = False, data = None):
     # Method used to create tag.
     if request.method == 'POST':
@@ -241,7 +287,7 @@ def tag(request, parsed = False, data = None):
 
 
 @csrf_exempt
-@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
 def account(request):
     # Method used to create account.
     if request.method == 'POST':
@@ -259,7 +305,7 @@ def account(request):
                 account_serializer = AccountSerializer(data=account_data)
                 if account_serializer.is_valid():
                     account_serializer.save()
-                    return JsonResponse("Account Created.", safe= False, status = status.HTTP_201_CREATED)
+                    return JsonResponse({"Message":"Account Created.", "acc_id":account_serializer.data["acc_id"]}, safe= False, status = status.HTTP_201_CREATED)
                 else:
                     return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
             else:
@@ -278,7 +324,7 @@ def account(request):
                 else:  
                     account = Account.objects.filter(usr_id=usr_id)
                     serializer = AccountSerializer(account, many=True)
-                    return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+                    return JsonResponse({item["acc_id"]:item for item in serializer.data}, safe=False, status=status.HTTP_200_OK)
             else:
                 account = Account.objects.get(acc_id=request.GET.get('acc_id'))
                 serializer = AccountSerializer(account, many=False)
@@ -320,9 +366,47 @@ def account(request):
     else:
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
 
+@csrf_exempt
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
+def account_serial(request, acc_id = None):
+    if request.method == 'GET':
+        try:
+            acc_id = request.GET.get('acc_id')
+            if acc_id != None:
+                transactionlist = Transaction.objects.filter(acc_id=str(acc_id))
+                tra_serializer = TransactionSerializer(transactionlist, many=True)
+                tra_responseitem = {}
+
+                for item in tra_serializer.data:
+                    try:
+                        tra_responseitem[item['tag_name']] += float(item['tra_value'])
+                    except KeyError:
+                        tra_responseitem[item['tag_name']] = float(item['tra_value'])
+                
+                budgetlist = Budget.objects.filter(acc_id=str(acc_id))
+                bud_serializer = BudgetSerializer(budgetlist, many=True)
+                bud_responseitem = {}
+                for item in bud_serializer.data:
+                    try:
+                        bud_responseitem[item['tag_name']] += float(item['bud_value'])
+                    except KeyError:
+                        bud_responseitem[item['tag_name']] = float(item['bud_value'])
+
+
+                response = {}
+                response['pieEntriesTra'] = tra_responseitem
+                response['pieEntriesBud'] = bud_responseitem
+                response['transactions'] = {item["tra_id"]:item for item in tra_serializer.data}
+                return JsonResponse(response, safe=False, status=status.HTTP_200_OK)
+            else:
+                return JsonResponse("You must Specify a user id.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return JsonResponse("Something went wrong with your request.", safe=False, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @csrf_exempt
-@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
 def transaction(request):
     # Method used to create transaction.
     if request.method == 'POST':
@@ -340,12 +424,12 @@ def transaction(request):
                 transaction_serializer = TransactionSerializer(data=transaction_data)
                 if transaction_serializer.is_valid():
                     transaction_serializer.save()
-                    return JsonResponse("Transaction Created.", safe= False, status = status.HTTP_201_CREATED)
+                    return JsonResponse({"Message":"Transaction Created.", "tra_id":transaction_serializer.data["tra_id"]}, safe= False, status = status.HTTP_201_CREATED)
                 else:
                     return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
             else:
                 return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
-        except:
+        except Exception as e:
             return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     # Method used to get transaction information.
@@ -357,11 +441,12 @@ def transaction(request):
                 if acc_id is None:
                     return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
                 else:
-                    transaction = Transaction.objects.filter(acc_id=request.GET.get('acc_id'))
+                    transaction = Transaction.objects.filter(acc_id=acc_id)
                     serializer = TransactionSerializer(transaction, many=True)
-                    return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
+
+                    return JsonResponse({item["tra_id"]:item for item in serializer.data}, safe=False, status=status.HTTP_200_OK)
             else:
-                transaction = Transaction.objects.get(tra_id=request.GET.get('tra_id'))
+                transaction = Transaction.objects.get(tra_id=tra_id)
                 serializer = TransactionSerializer(transaction, many=False)
                 return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
         except Exception as e:
@@ -397,13 +482,13 @@ def transaction(request):
             else:
                 return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)    
     
-    # Anything else then CRUD.
+    # Anything else than the above methods will return 405 Method Not Allowed.
     else:
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
-@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
 def vault(request):
     # Method used to get vault information.
     if request.method == 'GET':
@@ -454,30 +539,53 @@ def vault(request):
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @csrf_exempt
-@ratelimit(key='ip', rate='60/m', block = True, method = ratelimit.ALL)
+@ratelimit(key='ip', rate=f'{rate}/m', block = True, method = ratelimit.ALL)
 def budget(request):
-    # Method used to get budget information.
-    if request.method == 'GET':
+    # Method used to create budget.
+    if request.method == 'POST':
         try:
-            budget = Budget.objects.filter(acc_id=request.GET.get('acc_id'))
-            serializer = BudgetSerializer(budget, many=True)
-            return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
-        except:
-            try:
-                budget = Budget.objects.get(bud_id=request.GET.get('bud_id'))
+            budget_data = JSONParser().parse(request)
+            if Budget.objects.filter(**budget_data).exists():
+                return JsonResponse("Budget already exists.", safe=False, status=status.HTTP_400_BAD_REQUEST)
+            if not Tag.objects.filter(tag_name=budget_data['tag_name']).exists():
+                tag_stattus = tag(request, parsed=True, data=budget_data)
+                if tag_stattus.status_code == status.HTTP_201_CREATED:
+                    tag_exists = True
+            else:
+                tag_exists = True
+            if tag_exists:
+                budget_serializer = BudgetSerializer(data=budget_data)
+                if budget_serializer.is_valid():
+                    budget_serializer.save()
+                    return JsonResponse({"Message":"Budget Created.", "bud_id":budget_serializer.data["bud_id"]}, safe= False, status = status.HTTP_200_OK)
+                else:
+                    return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLE)
+            else:
+                return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLE)
+        except Exception as e:
+            return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # Method used to get budget information.
+    elif request.method == 'GET':
+        try:
+            bud_id = request.GET.get('bud_id')
+            if bud_id is None:
+                acc_id = request.GET.get('acc_id')
+                if acc_id is None:
+                    return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLE)
+                else:
+                    budget = Budget.objects.filter(acc_id=acc_id)
+                    serializer = BudgetSerializer(budget, many=True)
+
+                    return JsonResponse({item["bud_id"]:item for item in serializer.data}, safe=False, status=status.HTTP_200_OK)
+            else:
+                budget = Budget.objects.get(bud_id=bud_id)
                 serializer = BudgetSerializer(budget, many=False)
                 return JsonResponse(serializer.data, safe=False, status=status.HTTP_200_OK)
-            except Budget.DoesNotExist:
-                return JsonResponse({'Budget does not exist'}, status=status.HTTP_404_NOT_FOUND)
-    # Method used to create budget.
-    elif request.method == 'POST':
-        budget_data = JSONParser().parse(request)
-        budget_serializer = BudgetSerializer(data=budget_data)
-        if budget_serializer.is_valid():
-            budget_serializer.save()
-            return JsonResponse("Budget Created.", safe= False, status = status.HTTP_200_OK)
-        else:
-            return JsonResponse("Budget already exists or wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            if e == Budget.DoesNotExist:
+                return JsonResponse("Budget does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
     # Method used to update budget information.
     elif request.method == 'PUT':
         try:
@@ -498,7 +606,11 @@ def budget(request):
             budget = Budget.objects.get(bud_id=budget_data['bud_id'])
             budget.delete()
             return JsonResponse("Deleted Successfully!",safe = False, status=status.HTTP_200_OK)
-        except Budget.DoesNotExist:
-            return JsonResponse("Budget does not exist.", safe= False, status = status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            if e == Budget.DoesNotExist:
+                return JsonResponse("Budget does not exist.", safe= False, status = status.HTTP_404_NOT_FOUND)
+            else:
+                return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #Anything else than the above methods will return 405 Method Not Allowed.
     else:
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)

@@ -21,13 +21,14 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 class Account():
-  def __init__(self, usr_id = None, tag_name = None):
+  def __init__(self, usr_id = None, tag_name = None, acc_alias = "Test"):
     self.status = True
     self.headers = {
         'Content-Type': 'application/json'
       }
     self.usr_id = usr_id
     self.acc_id = None
+    self.acc_alias = acc_alias
     self.tag_name = tag_name
     self.url_account = "http://127.0.0.1:8000/account"
 
@@ -37,12 +38,13 @@ class Account():
       if self.status:
         payload = json.dumps({
           "usr_id":self.usr_id,
-          "acc_alias": "TestAccount",
+          "acc_alias": self.acc_alias,
           "tag_name":self.tag_name
         })
         response = requests.request("POST", url = self.url_account, headers=self.headers, data=payload)
-        if response.status_code == 200:
+        if response.status_code == 201:
           self.status = True
+          self.acc_id = response.json().get('acc_id')
           print(f"{bcolors.OKGREEN}Test 6 - create account -> Status: Success.{bcolors.ENDC}")
       else:
         self.status = False
@@ -72,7 +74,7 @@ class Account():
     # Test 7 - Get accounts info
     try:
       if status:
-        response = requests.request("GET", url = f"http://127.0.0.1:8000/account?acc_id={self.acc_ids[0]}", headers={}, data={})
+        response = requests.request("GET", url = f"http://127.0.0.1:8000/account?acc_id={self.acc_id}", headers={}, data={})
         if response.status_code == 200:
           response = json.loads(response.text)
           self.status = True

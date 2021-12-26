@@ -20,10 +20,11 @@ class Image(models.Model):
     img_image = models.ImageField(blank=True)
     
 class Tag(models.Model):
-    fields = ('tag_name', 'tag_type', 'img_name')
+    fields = ('tag_name', 'tag_type', 'img_name', 'tag_colour')
     tag_name = models.CharField(max_length=25, primary_key=True)
     tag_type = models.CharField(max_length=25, blank=True)
     img_name = models.ForeignKey(Image, on_delete=models.CASCADE)
+    tag_colour = models.CharField(max_length=7, default='#8CBF26')
 
 class Account(models.Model):
     fields = ('acc_id', 'usr_id', 'acc_credate', 'acc_alias', 'tag_name')
@@ -52,11 +53,11 @@ class Vault(models.Model):
     vau_value = models.DecimalField(max_digits=9, decimal_places=2)
 
 class Budget(models.Model):
-    fields = ('bud_id', 'acc_id', 'tag_id', 'bud_value')
+    fields = ('bud_id', 'acc_id', 'tag_name', 'bud_value')
     bud_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     acc_id = models.ForeignKey(Account, on_delete=models.CASCADE)
-    img_name = models.CharField(max_length=25)
-
+    bud_value = models.DecimalField(max_digits=9, decimal_places=2)
+    tag_name = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='_bud_pair')
 class Active(models.Model):
     fields = ('act_id', 'act_name', 'img_name')
     act_id = models.CharField(max_length=10, primary_key=True)
