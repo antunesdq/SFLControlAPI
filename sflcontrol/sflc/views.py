@@ -11,6 +11,8 @@ from django.http import QueryDict
 from rest_framework.serializers import Serializer
 from sflc.serializer import *
 
+import datetime
+
 from sflc.models import *
 
 # Create your views here.
@@ -99,7 +101,14 @@ def user_serial(request, usr_id = None):
                 transactionlist = []    
                 accs = Account.objects.filter(usr_id=usr_id)
                 for acc in accs:
-                    transactionlist += Transaction.objects.filter(acc_id=str(acc.acc_id))
+                    if datetime.datetime.now().day == acc.acc_refday:
+                        refdate = datetime.datetime.now().date()
+                    elif datetime.datetime.now().day > acc.acc_refday:
+                        refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month, acc.acc_refday)
+                    else:
+                        refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month - 1, acc.acc_refday)
+                    
+                    transactionlist += Transaction.objects.filter(acc_id=acc.acc_id, tra_date__gte = refdate)
                 tra_serializer = TransactionSerializer(transactionlist, many=True)
                 tra_responseitem = {}
                 for item in tra_serializer.data:
@@ -310,7 +319,7 @@ def account(request):
                     return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
             else:
                 return JsonResponse("Wrong input.", safe=False, status=status.HTTP_406_NOT_ACCEPTABLE)
-        except:
+        except Exception as e:
             return JsonResponse("Something went wrong with your request.", safe=False, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     # Method used to get account information.

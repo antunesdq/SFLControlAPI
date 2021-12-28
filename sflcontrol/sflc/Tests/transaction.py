@@ -1,3 +1,4 @@
+import datetime
 from typing import Tuple
 from django.conf.urls import url
 from django.test import TestCase
@@ -37,7 +38,7 @@ class Transaction():
       if self.status:
         payload = json.dumps({
           "acc_id":self.acc_id,
-          "tra_date": "2006-10-25 14:30",
+          "tra_date": (datetime.datetime.now() - datetime.timedelta(days = random.randint(0, 8))).strftime("%Y-%m-%d %H:%M"),
           "tra_value": random.randint(100, 1000),
           "tra_name": "Sei la",
           "tag_name": self.tag_name

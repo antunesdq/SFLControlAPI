@@ -21,7 +21,7 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 class Account():
-  def __init__(self, usr_id = None, tag_name = None, acc_alias = "Test"):
+  def __init__(self, usr_id = None, tag_name = None, acc_alias = "Test", acc_refday = 22):
     self.status = True
     self.headers = {
         'Content-Type': 'application/json'
@@ -30,6 +30,7 @@ class Account():
     self.acc_id = None
     self.acc_alias = acc_alias
     self.tag_name = tag_name
+    self.acc_refday = acc_refday
     self.url_account = "http://127.0.0.1:8000/account"
 
   def create_account(self):
@@ -39,6 +40,7 @@ class Account():
         payload = json.dumps({
           "usr_id":self.usr_id,
           "acc_alias": self.acc_alias,
+          "acc_refday": self.acc_refday,
           "tag_name":self.tag_name
         })
         response = requests.request("POST", url = self.url_account, headers=self.headers, data=payload)
