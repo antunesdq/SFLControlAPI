@@ -37,13 +37,14 @@ class Account(models.Model):
     tag_name = models.ForeignKey(Tag, on_delete=models.CASCADE)
 
 class Transaction(models.Model):
-    fields = ('tra_id', 'acc_id', 'tra_date', 'tra_value', 'tra_name', 'tag_name')
+    fields = ('tra_id', 'acc_id', 'tra_date', 'tra_value', 'tra_name', 'tag_name', 'tra_type')
     tra_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     acc_id = models.ForeignKey(Account, on_delete=models.CASCADE)
     tra_date = models.DateTimeField()
     tra_value = models.DecimalField(max_digits=9, decimal_places=2)
     tra_name = models.CharField(max_length=25)
     tag_name = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='_tra_pair')
+    tra_type = models.CharField(max_length=25)
 
 
 

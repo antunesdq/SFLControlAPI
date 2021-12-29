@@ -108,7 +108,7 @@ def user_serial(request, usr_id = None):
                     else:
                         refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month - 1, acc.acc_refday)
                     
-                    transactionlist += Transaction.objects.filter(acc_id=acc.acc_id, tra_date__gte = refdate)
+                    transactionlist += Transaction.objects.filter(acc_id=acc.acc_id, tra_date__gte = refdate, tra_type = "Expense")
                 tra_serializer = TransactionSerializer(transactionlist, many=True)
                 tra_responseitem = {}
                 for item in tra_serializer.data:
@@ -382,7 +382,14 @@ def account_serial(request, acc_id = None):
         try:
             acc_id = request.GET.get('acc_id')
             if acc_id != None:
-                transactionlist = Transaction.objects.filter(acc_id=str(acc_id))
+                acc = Account.objects.get(acc_id=acc_id)
+                if datetime.datetime.now().day == acc.acc_refday:
+                    refdate = datetime.datetime.now().date()
+                elif datetime.datetime.now().day > acc.acc_refday:
+                    refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month, acc.acc_refday)
+                else:
+                    refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month - 1, acc.acc_refday)
+                transactionlist = Transaction.objects.filter(acc_id=str(acc_id), tra_date__gte = refdate, tra_type = "Expense")
                 tra_serializer = TransactionSerializer(transactionlist, many=True)
                 tra_responseitem = {}
 
@@ -566,7 +573,7 @@ def budget(request):
                 budget_serializer = BudgetSerializer(data=budget_data)
                 if budget_serializer.is_valid():
                     budget_serializer.save()
-                    return JsonResponse({"Message":"Budget Created.", "bud_id":budget_serializer.data["bud_id"]}, safe= False, status = status.HTTP_200_OK)
+                    return JsonResponse({"Message":"Budget Created.", "bud_id":budget_serializer.data["bud_id"]}, safe= False, status = status.HTTP_201_CREATED)
                 else:
                     return JsonResponse("Wrong input.", safe= False, status = status.HTTP_406_NOT_ACCEPTABLE)
             else:

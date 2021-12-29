@@ -23,13 +23,14 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 class Transaction():
-  def __init__(self, acc_id = None, tag_name = None, tra_name = "Sei la", tra_value = "None", tra_date = "2006-10-25 14:30"):
+  def __init__(self, acc_id = None, tag_name = None, tra_name = "Sei la", tra_value = "None", tra_date = "2006-10-25 14:30", tra_type = "Expense"):
     self.status = True
     self.headers = {
         'Content-Type': 'application/json'
       }
     self.acc_id = acc_id
     self.tag_name = tag_name
+    self.tra_type = tra_type
     self.url_transaction = "http://127.0.0.1:8000/transaction"
 
   def create_transaction(self):
@@ -41,7 +42,8 @@ class Transaction():
           "tra_date": (datetime.datetime.now() - datetime.timedelta(days = random.randint(0, 8))).strftime("%Y-%m-%d %H:%M"),
           "tra_value": random.randint(100, 1000),
           "tra_name": "Sei la",
-          "tag_name": self.tag_name
+          "tag_name": self.tag_name,
+          "tra_type": self.tra_type
         })
         response = requests.request("POST", url = self.url_transaction, headers=self.headers, data=payload)
         if response.status_code == 201:
