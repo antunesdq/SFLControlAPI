@@ -17,7 +17,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/sflcontrol/manage.py",
             "args": [
-                "runserver"
+                "runserver",
+                "0.0.0.0:8000"
             ],
             "django": true
         }
