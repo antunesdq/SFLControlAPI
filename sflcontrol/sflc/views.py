@@ -106,7 +106,10 @@ def user_serial(request, usr_id = None):
                     elif datetime.datetime.now().day > acc.acc_refday:
                         refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month, acc.acc_refday)
                     else:
-                        refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month - 1, acc.acc_refday)
+                        if datetime.datetime.now().month == 1:
+                            refdate = datetime.datetime(datetime.datetime.now().year-1, 12, acc.acc_refday)
+                        else:
+                            refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month - 1, acc.acc_refday)
                     
                     transactionlist += Transaction.objects.filter(acc_id=acc.acc_id, tra_date__gte = refdate, tra_type = "Expense")
                 tra_serializer = TransactionSerializer(transactionlist, many=True)
