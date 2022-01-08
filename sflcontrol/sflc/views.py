@@ -111,15 +111,23 @@ def user_serial(request, usr_id = None):
                         else:
                             refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month - 1, acc.acc_refday)
                     
-                    transactionlist += Transaction.objects.filter(acc_id=acc.acc_id, tra_date__gte = refdate, tra_type = "Expense")
+                    transactionlist += Transaction.objects.filter(acc_id=acc.acc_id, tra_date__gte = refdate)
                 tra_serializer = TransactionSerializer(transactionlist, many=True)
-                tra_responseitem = {}
+                exp_responseitem = {}
+                pay_responseitem = {}
+
                 for item in tra_serializer.data:
-                    try:
-                        tra_responseitem[item['tag_name']] += float(item['tra_value'])
-                    except KeyError:
-                        tra_responseitem[item['tag_name']] = float(item['tra_value'])
-                
+                    if item.get('tra_type') == 'Expense':
+                        try:
+                            exp_responseitem[item['tag_name']] += float(item['tra_value'])
+                        except KeyError:
+                            exp_responseitem[item['tag_name']] = float(item['tra_value'])
+                    elif item.get('tra_type') == 'Payment':
+                        try:
+                            pay_responseitem[item['tag_name']] += float(item['tra_value'])
+                        except KeyError:
+                            pay_responseitem[item['tag_name']] = float(item['tra_value'])
+
                 budgetlist = []
                 accs = Account.objects.filter(usr_id=usr_id)
                 for acc in accs:
@@ -135,9 +143,11 @@ def user_serial(request, usr_id = None):
 
 
                 response = {}
-                response['pieEntriesTra'] = tra_responseitem
+                response['pieEntriesTraExp'] = exp_responseitem
+                response['pieEntriesTraPay'] = pay_responseitem
                 response['pieEntriesBud'] = bud_responseitem
-                response['transactions'] = {item["tra_id"]:item for item in tra_serializer.data}
+                ## TODO: Fix this here. 
+                response['transactions'] = {item["tra_id"]:item for item in tra_serializer.data if item.get('tra_type') == 'Expense'}
                 return JsonResponse(response, safe=False, status=status.HTTP_200_OK)
             else:
                 return JsonResponse("You must Specify a user id.", safe=False, status=status.HTTP_400_BAD_REQUEST)
@@ -395,16 +405,23 @@ def account_serial(request, acc_id = None):
                         refdate = datetime.datetime(datetime.datetime.now().year-1, 12, acc.acc_refday)
                     else:
                         refdate = datetime.datetime(datetime.datetime.now().year, datetime.datetime.now().month - 1, acc.acc_refday)
-                transactionlist = Transaction.objects.filter(acc_id=str(acc_id), tra_date__gte = refdate, tra_type = "Expense")
+                transactionlist = Transaction.objects.filter(acc_id=str(acc_id), tra_date__gte = refdate)
                 tra_serializer = TransactionSerializer(transactionlist, many=True)
-                tra_responseitem = {}
-
-                for item in tra_serializer.data:
-                    try:
-                        tra_responseitem[item['tag_name']] += float(item['tra_value'])
-                    except KeyError:
-                        tra_responseitem[item['tag_name']] = float(item['tra_value'])
+                exp_responseitem = {}
+                pay_responseitem = {}
                 
+                for item in tra_serializer.data:
+                    if item.get('tra_type') == 'Expense':
+                        try:
+                            exp_responseitem[item['tag_name']] += float(item['tra_value'])
+                        except KeyError:
+                            exp_responseitem[item['tag_name']] = float(item['tra_value'])
+                    elif item.get('tra_type') == 'Payment':
+                        try:
+                            pay_responseitem[item['tag_name']] += float(item['tra_value'])
+                        except KeyError:
+                            pay_responseitem[item['tag_name']] = float(item['tra_value'])
+
                 budgetlist = Budget.objects.filter(acc_id=str(acc_id))
                 bud_serializer = BudgetSerializer(budgetlist, many=True)
                 bud_responseitem = {}
@@ -413,12 +430,12 @@ def account_serial(request, acc_id = None):
                         bud_responseitem[item['tag_name']] += float(item['bud_value'])
                     except KeyError:
                         bud_responseitem[item['tag_name']] = float(item['bud_value'])
-
-
                 response = {}
-                response['pieEntriesTra'] = tra_responseitem
+                response['pieEntriesTraExp'] = exp_responseitem
+                response['pieEntriesTraPay'] = pay_responseitem
                 response['pieEntriesBud'] = bud_responseitem
-                response['transactions'] = {item["tra_id"]:item for item in tra_serializer.data}
+                ## TODO: Fix this here.
+                response['transactions'] = {item["tra_id"]:item for item in tra_serializer.data if item.get('tra_type') == 'Expense'}
                 return JsonResponse(response, safe=False, status=status.HTTP_200_OK)
             else:
                 return JsonResponse("You must Specify a user id.", safe=False, status=status.HTTP_400_BAD_REQUEST)
