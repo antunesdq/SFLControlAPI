@@ -46,14 +46,13 @@ class Transaction(models.Model):
     tag_name = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='_tra_pair')
     tra_type = models.CharField(max_length=25)
 
-
-
 class Vault(models.Model):
-    fields = ('vau_id', 'acc_id', 'tag_id', 'vau_value')
+    fields = ('vau_id', 'acc_id', 'tag_name', 'vau_value', "vau_meta")
     vau_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     acc_id = models.ForeignKey(Account, on_delete=models.CASCADE)
-    img_name = models.CharField(max_length=25)
+    tag_name = models.CharField(max_length=25)
     vau_value = models.DecimalField(max_digits=9, decimal_places=2)
+    vau_meta = models.DecimalField(max_digits=9, decimal_places=2)
 
 class Budget(models.Model):
     fields = ('bud_id', 'acc_id', 'tag_name', 'bud_value')

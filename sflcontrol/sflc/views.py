@@ -430,12 +430,20 @@ def account_serial(request, acc_id = None):
                         bud_responseitem[item['tag_name']] += float(item['bud_value'])
                     except KeyError:
                         bud_responseitem[item['tag_name']] = float(item['bud_value'])
+
+                vaultslist = Vault.objects.filter(acc_id=str(acc_id))
+                vau_serializer = VaultSerializer(vaultslist, many=True)
+                vau_responseitem = {}
+                for item in vau_serializer.data:
+                        vau_responseitem[item['tag_name']] = float(item['vau_value'])
+
                 response = {}
                 response['pieEntriesTraExp'] = exp_responseitem
                 response['pieEntriesTraPay'] = pay_responseitem
                 response['pieEntriesBud'] = bud_responseitem
                 ## TODO: Fix this here.
                 response['transactions'] = {item["tra_id"]:item for item in tra_serializer.data if item.get('tra_type') == 'Expense'}
+                response['vaults'] = {item["vau_id"]:item for item in vau_serializer.data}
                 return JsonResponse(response, safe=False, status=status.HTTP_200_OK)
             else:
                 return JsonResponse("You must Specify a user id.", safe=False, status=status.HTTP_400_BAD_REQUEST)
@@ -548,7 +556,7 @@ def vault(request):
         vault_serializer = VaultSerializer(data=vault_data)
         if vault_serializer.is_valid():
             vault_serializer.save()
-            return JsonResponse("Vault Created.", safe= False, status = status.HTTP_200_OK)
+            return JsonResponse({"Message":"Vault Created.", "vau_id":vault_serializer.data["vau_id"]}, safe= False, status = status.HTTP_201_CREATED)
         else:
             return JsonResponse("Vault already exists or wrong input.", safe= False, status = status.HTTP_400_BAD_REQUEST)
             
@@ -653,3 +661,6 @@ def budget(request):
     #Anything else than the above methods will return 405 Method Not Allowed.
     else:
         return JsonResponse("Method not allowed.", safe= False, status = status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+
